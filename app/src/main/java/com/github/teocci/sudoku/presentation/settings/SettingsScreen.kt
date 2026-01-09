@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Highlight
 import androidx.compose.material.icons.filled.Numbers
@@ -67,6 +68,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
     onNavigateBack: () -> Unit = {},
+    onNavigateToSupport: () -> Unit = {},
     onThemeChanged: (Boolean) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -85,6 +87,7 @@ fun SettingsScreen(
     SettingsScreenContent(
         uiState = uiState,
         onNavigateBack = onNavigateBack,
+        onNavigateToSupport = onNavigateToSupport,
         onToggleSound = viewModel::toggleSound,
         onToggleHaptic = viewModel::toggleHaptic,
         onToggleAutoRemoveNotes = viewModel::toggleAutoRemoveNotes,
@@ -111,6 +114,7 @@ fun SettingsScreen(
 private fun SettingsScreenContent(
     uiState: SettingsUiState,
     onNavigateBack: () -> Unit,
+    onNavigateToSupport: () -> Unit,
     onToggleSound: () -> Unit,
     onToggleHaptic: () -> Unit,
     onToggleAutoRemoveNotes: () -> Unit,
@@ -272,6 +276,19 @@ private fun SettingsScreenContent(
                     description = "Delete all saved game data",
                     onClick = onClearSavedGames,
                     isDangerous = true
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // About Section
+            SettingsSection(title = "About") {
+                SettingsActionItem(
+                    icon = Icons.Default.Favorite,
+                    title = "Support Development",
+                    description = "Help keep this app free & ad-free",
+                    onClick = onNavigateToSupport,
+                    isDangerous = false
                 )
             }
 
@@ -524,6 +541,7 @@ private fun PreviewSettingsScreen() {
         SettingsScreenContent(
             uiState = SettingsUiState(),
             onNavigateBack = {},
+            onNavigateToSupport = {},
             onToggleSound = {},
             onToggleHaptic = {},
             onToggleAutoRemoveNotes = {},

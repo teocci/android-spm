@@ -97,6 +97,14 @@ sealed class Screen(
     )
 
     /**
+     * Support/Donation screen.
+     */
+    data object Support : Screen(
+        route = "support",
+        title = "Support"
+    )
+
+    /**
      * Game completion screen.
      * Arguments:
      * - score: Final score

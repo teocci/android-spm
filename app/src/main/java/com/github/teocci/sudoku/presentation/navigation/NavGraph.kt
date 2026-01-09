@@ -217,7 +217,33 @@ fun SudokuNavGraph(
                         onNavigateBack = {
                             navController.popBackStack()
                         },
+                        onNavigateToSupport = {
+                            navController.navigate(Screen.Support.route)
+                        },
                         onThemeChanged = onThemeChanged
+                    )
+                }
+
+                // Support screen
+                composable(
+                    route = Screen.Support.route,
+                    enterTransition = {
+                        slideIntoContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                            animationSpec = tween(300)
+                        )
+                    },
+                    exitTransition = {
+                        slideOutOfContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                            animationSpec = tween(300)
+                        )
+                    }
+                ) {
+                    com.github.teocci.sudoku.presentation.support.SupportScreen(
+                        onNavigateBack = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
