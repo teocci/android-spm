@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation.compose.rememberNavController
+import com.github.teocci.sudoku.data.RepositoryProvider
 import com.github.teocci.sudoku.data.local.GamePreferences
 import com.github.teocci.sudoku.presentation.navigation.SudokuNavGraph
 import com.github.teocci.sudoku.ui.theme.SudokuPuzzleMasterTheme
@@ -31,6 +32,9 @@ class MainActivity : ComponentActivity() {
 
         // Initialize preferences
         gamePreferences = GamePreferences.getInstance(this)
+
+        // Initialize repositories
+        RepositoryProvider.initialize(this)
 
         enableEdgeToEdge()
 

@@ -2,6 +2,8 @@ package com.github.teocci.sudoku.presentation.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.teocci.sudoku.data.RepositoryProvider
+import com.github.teocci.sudoku.data.repository.StatsRepository
 import com.github.teocci.sudoku.domain.model.Difficulty
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +15,9 @@ import kotlinx.coroutines.launch
  * ViewModel for the profile/statistics screen.
  * Manages user statistics and achievement data.
  */
-class ProfileViewModel : ViewModel() {
+class ProfileViewModel(
+    private val statsRepository: StatsRepository = RepositoryProvider.getStatsRepository()
+) : ViewModel() {
 
     // UI State
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -39,20 +43,23 @@ class ProfileViewModel : ViewModel() {
      * Load overall statistics.
      */
     private fun loadStatistics() {
-        // TODO: Load from repository
-        _uiState.update { state ->
-            state.copy(
-                overallStats = OverallStatistics(
-                    gamesPlayed = 156,
-                    gamesWon = 142,
-                    currentStreak = 7,
-                    bestStreak = 23,
-                    averageTime = 485L, // ~8 minutes
-                    bestTime = 178L, // ~3 minutes
-                    totalPlayTime = 75600L, // 21 hours
-                    perfectGames = 45
-                )
-            )
+        viewModelScope.launch {
+            statsRepository.overallStats.collect { stats ->
+                _uiState.update { state ->
+                    state.copy(
+                        overallStats = OverallStatistics(
+                            gamesPlayed = stats.gamesPlayed,
+                            gamesWon = stats.gamesWon,
+                            currentStreak = stats.currentStreak,
+                            bestStreak = stats.bestStreak,
+                            averageTime = if (stats.gamesPlayed > 0) stats.totalTime / stats.gamesPlayed else 0L,
+                            bestTime = stats.bestTime,
+                            totalPlayTime = stats.totalTime,
+                            perfectGames = stats.perfectGames
+                        )
+                    )
+                }
+            }
         }
     }
 
@@ -60,36 +67,23 @@ class ProfileViewModel : ViewModel() {
      * Load per-difficulty statistics.
      */
     private fun loadDifficultyStats() {
-        // TODO: Load from repository
-        _uiState.update { state ->
-            state.copy(
-                difficultyStats = mapOf(
-                    Difficulty.EASY to DifficultyStatistics(
-                        gamesPlayed = 45,
-                        gamesWon = 45,
-                        averageTime = 245L,
-                        bestTime = 120L
-                    ),
-                    Difficulty.MEDIUM to DifficultyStatistics(
-                        gamesPlayed = 52,
-                        gamesWon = 50,
-                        averageTime = 380L,
-                        bestTime = 195L
-                    ),
-                    Difficulty.HARD to DifficultyStatistics(
-                        gamesPlayed = 38,
-                        gamesWon = 32,
-                        averageTime = 620L,
-                        bestTime = 310L
-                    ),
-                    Difficulty.EXPERT to DifficultyStatistics(
-                        gamesPlayed = 21,
-                        gamesWon = 15,
-                        averageTime = 890L,
-                        bestTime = 445L
-                    )
+        viewModelScope.launch {
+            val difficultyStats = Difficulty.entries.associate { difficulty ->
+                difficulty to statsRepository.getDifficultyStats(difficulty)
+            }
+
+            _uiState.update { state ->
+                state.copy(
+                    difficultyStats = difficultyStats.mapValues { (_, stats) ->
+                        DifficultyStatistics(
+                            gamesPlayed = stats.gamesPlayed,
+                            gamesWon = stats.gamesWon,
+                            averageTime = stats.averageTime,
+                            bestTime = stats.bestTime
+                        )
+                    }
                 )
-            )
+            }
         }
     }
 
@@ -237,18 +231,12 @@ class ProfileViewModel : ViewModel() {
     }
 
     /**
-     * Reset all statistics (with confirmation).
+     * Reset all statistics.
      */
     fun resetStatistics() {
-        // TODO: Implement reset with confirmation dialog
         viewModelScope.launch {
-            _uiState.update { state ->
-                state.copy(
-                    overallStats = OverallStatistics(),
-                    difficultyStats = emptyMap(),
-                    recentGames = emptyList()
-                )
-            }
+            statsRepository.resetAllStats()
+            // Stats will automatically update via the Flow
         }
     }
 }

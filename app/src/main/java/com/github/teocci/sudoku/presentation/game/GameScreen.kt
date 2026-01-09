@@ -19,6 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -41,6 +44,7 @@ import com.github.teocci.sudoku.presentation.components.GameHeader
 import com.github.teocci.sudoku.presentation.components.NumberPad
 import com.github.teocci.sudoku.presentation.components.SudokuGrid
 import com.github.teocci.sudoku.presentation.components.SudokuGridPaused
+import com.github.teocci.sudoku.presentation.daily.components.ResumeDailyChallengeDialog
 import com.github.teocci.sudoku.ui.theme.SudokuPuzzleMasterTheme
 import com.github.teocci.sudoku.ui.theme.SudokuTheme
 import kotlinx.coroutines.flow.collectLatest
@@ -56,7 +60,7 @@ import kotlinx.coroutines.flow.collectLatest
  */
 @Composable
 fun GameScreen(
-    viewModel: GameViewModel = viewModel(),
+    viewModel: GameViewModel = viewModel(factory = GameViewModel.Factory),
     onNavigateBack: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onGameComplete: (score: Int, time: Long, difficulty: Difficulty, isDaily: Boolean) -> Unit = { _, _, _, _ -> },
@@ -70,6 +74,10 @@ fun GameScreen(
     val numberCounts by viewModel.numberCounts.collectAsState()
 
     val haptic = LocalHapticFeedback.current
+
+    // State for resume dialog
+    var showResumeDialog by remember { mutableStateOf(false) }
+    var savedGameState by remember { mutableStateOf<GameState?>(null) }
 
     // Handle events
     LaunchedEffect(Unit) {
@@ -86,6 +94,10 @@ fun GameScreen(
                 }
                 is GameEvent.GameLost -> {
                     onGameOver(event.score, event.difficulty)
+                }
+                is GameEvent.ResumeDailyChallenge -> {
+                    savedGameState = event.savedState
+                    showResumeDialog = true
                 }
             }
         }
@@ -112,6 +124,26 @@ fun GameScreen(
         onFloatingScoreComplete = viewModel::removeFloatingScore,
         onResumeClick = viewModel::resumeGame
     )
+
+    // Resume dialog overlay
+    if (showResumeDialog && savedGameState != null) {
+        ResumeDailyChallengeDialog(
+            savedGame = savedGameState!!,
+            onContinue = {
+                viewModel.resumeSavedGame(savedGameState!!)
+                showResumeDialog = false
+            },
+            onRestart = {
+                viewModel.clearSavedGame()
+                viewModel.restartGame()
+                showResumeDialog = false
+            },
+            onCancel = {
+                showResumeDialog = false
+                onNavigateBack()
+            }
+        )
+    }
 }
 
 /**

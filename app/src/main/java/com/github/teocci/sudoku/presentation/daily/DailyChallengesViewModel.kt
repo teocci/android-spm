@@ -2,6 +2,8 @@ package com.github.teocci.sudoku.presentation.daily
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.teocci.sudoku.data.RepositoryProvider
+import com.github.teocci.sudoku.data.local.DailyChallengeStore
 import com.github.teocci.sudoku.domain.model.Difficulty
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +21,9 @@ import java.time.temporal.TemporalAdjusters
  * ViewModel for the daily challenges screen.
  * Manages calendar state and daily challenge progress.
  */
-class DailyChallengesViewModel : ViewModel() {
+class DailyChallengesViewModel(
+    private val dailyChallengeStore: DailyChallengeStore = RepositoryProvider.getDailyChallengeStore()
+) : ViewModel() {
 
     // UI State
     private val _uiState = MutableStateFlow(DailyChallengesUiState())
@@ -31,7 +35,7 @@ class DailyChallengesViewModel : ViewModel() {
 
     init {
         loadCurrentMonth()
-        loadCompletedDays()
+        loadCompletedDaysAndStreak()
         loadTrophies()
     }
 
@@ -53,29 +57,30 @@ class DailyChallengesViewModel : ViewModel() {
     }
 
     /**
-     * Load completed daily challenges.
+     * Load completed daily challenges and current streak.
+     * Observes both StateFlows for automatic updates.
      */
-    private fun loadCompletedDays() {
-        // TODO: Load from repository
+    private fun loadCompletedDaysAndStreak() {
         viewModelScope.launch {
-            // Simulate some completed days for demo
-            val today = LocalDate.now()
-            val completed = mutableSetOf<LocalDate>()
-
-            // Mark some random past days as completed
-            for (i in 1..15) {
-                val day = today.minusDays(i.toLong())
-                if (i % 2 == 0 || i % 3 == 0) {
-                    completed.add(day)
+            // Observe completed days
+            launch {
+                dailyChallengeStore.completedDays.collect { completedDates ->
+                    _uiState.update { state ->
+                        state.copy(
+                            completedDays = completedDates,
+                            monthlyProgress = calculateMonthlyProgress(completedDates, state.currentYearMonth)
+                        )
+                    }
                 }
             }
 
-            _uiState.update { state ->
-                state.copy(
-                    completedDays = completed,
-                    currentStreak = calculateStreak(completed, today),
-                    monthlyProgress = calculateMonthlyProgress(completed, YearMonth.from(today))
-                )
+            // Observe current streak
+            launch {
+                dailyChallengeStore.currentStreak.collect { streak ->
+                    _uiState.update { state ->
+                        state.copy(currentStreak = streak)
+                    }
+                }
             }
         }
     }
@@ -203,6 +208,28 @@ class DailyChallengesViewModel : ViewModel() {
     }
 
     /**
+     * Select next unsolved challenge.
+     * Used after collecting rewards to guide user to next challenge.
+     */
+    fun selectNextUnsolvedChallenge() {
+        val today = LocalDate.now()
+        val completedDays = _uiState.value.completedDays
+        var currentDate = today
+
+        // Find the nearest unsolved challenge (working backwards from today)
+        while (currentDate.isAfter(today.minusMonths(1))) {
+            if (currentDate !in completedDays && !currentDate.isAfter(today)) {
+                _uiState.update { it.copy(selectedDate = currentDate) }
+                return
+            }
+            currentDate = currentDate.minusDays(1)
+        }
+
+        // If all recent challenges completed, select today
+        _uiState.update { it.copy(selectedDate = today) }
+    }
+
+    /**
      * Get difficulty for a specific date.
      * Rotates through difficulties based on day of week.
      */
@@ -253,26 +280,6 @@ class DailyChallengesViewModel : ViewModel() {
         }
 
         return days
-    }
-
-    /**
-     * Calculate current streak of consecutive completed days.
-     */
-    private fun calculateStreak(completedDays: Set<LocalDate>, fromDate: LocalDate): Int {
-        var streak = 0
-        var checkDate = fromDate
-
-        // If today isn't completed, start from yesterday
-        if (checkDate !in completedDays) {
-            checkDate = checkDate.minusDays(1)
-        }
-
-        while (checkDate in completedDays) {
-            streak++
-            checkDate = checkDate.minusDays(1)
-        }
-
-        return streak
     }
 
     /**

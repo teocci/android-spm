@@ -59,11 +59,13 @@ import java.time.format.DateTimeFormatter
  * Daily challenges screen with calendar and progress tracking.
  *
  * @param viewModel The daily challenges ViewModel
+ * @param autoSelectNext Whether to automatically select the next unsolved challenge
  * @param onNavigateToGame Called when starting a daily challenge
  */
 @Composable
 fun DailyChallengesScreen(
     viewModel: DailyChallengesViewModel = viewModel(),
+    autoSelectNext: Boolean = false,
     onNavigateToGame: (LocalDate, Difficulty) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,6 +78,13 @@ fun DailyChallengesScreen(
                     onNavigateToGame(event.date, event.difficulty)
                 }
             }
+        }
+    }
+
+    // Auto-select next unsolved challenge if requested
+    LaunchedEffect(autoSelectNext) {
+        if (autoSelectNext) {
+            viewModel.selectNextUnsolvedChallenge()
         }
     }
 

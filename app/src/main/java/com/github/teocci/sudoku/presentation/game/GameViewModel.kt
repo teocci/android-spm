@@ -2,8 +2,15 @@ package com.github.teocci.sudoku.presentation.game
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewModelScope
 import com.github.teocci.sudoku.core.Constants.GRID_SIZE
+import com.github.teocci.sudoku.data.RepositoryProvider
+import com.github.teocci.sudoku.data.local.DailyChallengeStore
+import com.github.teocci.sudoku.data.repository.GameRepository
+import com.github.teocci.sudoku.data.repository.StatsRepository
 import com.github.teocci.sudoku.domain.generator.SudokuGenerator
 import com.github.teocci.sudoku.domain.model.Difficulty
 import com.github.teocci.sudoku.domain.model.GameAction
@@ -30,7 +37,10 @@ import java.time.LocalDate
  * Manages all game logic, state, and user interactions.
  */
 class GameViewModel(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val gameRepository: GameRepository = RepositoryProvider.getGameRepository(),
+    private val statsRepository: StatsRepository = RepositoryProvider.getStatsRepository(),
+    private val dailyChallengeStore: DailyChallengeStore = RepositoryProvider.getDailyChallengeStore()
 ) : ViewModel() {
 
     // Parse navigation arguments
@@ -75,7 +85,24 @@ class GameViewModel(
     private var timerJob: Job? = null
 
     init {
-        startNewGame()
+        // Check for saved game if this is a daily challenge
+        if (isDaily) {
+            viewModelScope.launch {
+                val savedGame = gameRepository.loadGameState()
+                if (savedGame != null &&
+                    savedGame.isDailyChallenge &&
+                    savedGame.gameDate == gameDate) {
+                    // Has in-progress daily challenge - emit event for resume dialog
+                    _events.emit(GameEvent.ResumeDailyChallenge(savedGame))
+                    return@launch
+                }
+                // No saved game, start new
+                startNewGame()
+            }
+        } else {
+            // Regular game, always start new
+            startNewGame()
+        }
     }
 
     /**
@@ -143,22 +170,26 @@ class GameViewModel(
     fun selectCell(position: Position) {
         if (!_gameState.value.isActive) return
 
+        val state = _gameState.value
+
+        // Early exit for lock notes mode - toggle note without selecting
+        if (state.notesMode && state.isNumberLocked && state.activeNumber != null) {
+            toggleNoteAt(position, state.activeNumber)
+            return
+        }
+
+        // If a number is locked (normal mode), place it at clicked position
+        if (state.isNumberLocked && state.activeNumber != null) {
+            placeNumber(state.activeNumber, targetPosition = position)
+            return
+        }
+
         _gameState.update { state ->
             // If same cell is selected, deselect it
             if (state.selectedCell == position) {
                 state.clearSelection()
             } else {
                 state.selectCell(position)
-            }
-        }
-
-        // If a number is locked, handle based on mode
-        val state = _gameState.value
-        if (state.isNumberLocked && state.activeNumber != null && state.selectedCell != null) {
-            if (state.notesMode) {
-                toggleNoteAt(state.selectedCell, state.activeNumber)
-            } else {
-                placeNumber(state.activeNumber)
             }
         }
     }
@@ -227,11 +258,11 @@ class GameViewModel(
     }
 
     /**
-     * Place a number in the selected cell.
+     * Place a number in the selected cell or at a specific position.
      */
-    private fun placeNumber(number: Int) {
+    private fun placeNumber(number: Int, targetPosition: Position? = null) {
         val state = _gameState.value
-        val position = state.selectedCell ?: return
+        val position = targetPosition ?: state.selectedCell ?: return
         val cell = state.board.getCell(position)
 
         if (cell.isFixed) return
@@ -499,6 +530,21 @@ class GameViewModel(
     fun pauseGame() {
         timerJob?.cancel()
         _gameState.update { it.pause() }
+
+        // Auto-save daily challenges
+        if (isDaily) {
+            saveGameState()
+        }
+    }
+
+    /**
+     * Save current game state.
+     */
+    private fun saveGameState() {
+        viewModelScope.launch {
+            val state = _gameState.value
+            gameRepository.saveGameState(state)
+        }
     }
 
     /**
@@ -605,6 +651,31 @@ class GameViewModel(
             difficulty = state.difficulty
         )
 
+        // Record statistics
+        val hintsUsed = 3 - state.hintsRemaining
+        val isPerfect = state.mistakes == 0 && hintsUsed == 0
+
+        statsRepository.recordGameCompleted(
+            difficulty = state.difficulty,
+            time = state.elapsedTimeSeconds,
+            score = finalScore.multipliedPoints,
+            mistakes = state.mistakes,
+            hintsUsed = hintsUsed
+        )
+
+        // Record daily challenge completion
+        if (isDaily) {
+            dailyChallengeStore.markDayCompleted(
+                date = gameDate,
+                time = state.elapsedTimeSeconds,
+                score = finalScore.multipliedPoints,
+                mistakes = state.mistakes
+            )
+
+            // Clear saved game state for this daily challenge
+            gameRepository.deleteSavedGame()
+        }
+
         delay(2000)
         _events.emit(
             GameEvent.GameWon(
@@ -619,12 +690,47 @@ class GameViewModel(
     private suspend fun handleGameLost() {
         timerJob?.cancel()
         val state = _gameState.value
+
+        // Record failed game in stats
+        val hintsUsed = 3 - state.hintsRemaining
+        statsRepository.recordGameFailed(
+            difficulty = state.difficulty,
+            time = state.elapsedTimeSeconds,
+            score = state.score,
+            hintsUsed = hintsUsed
+        )
+
+        // Clear saved daily challenge if applicable
+        if (isDaily) {
+            gameRepository.deleteSavedGame()
+        }
+
         _events.emit(
             GameEvent.GameLost(
                 score = state.score,
                 difficulty = state.difficulty
             )
         )
+    }
+
+    /**
+     * Resume a saved game.
+     */
+    fun resumeSavedGame(savedState: GameState) {
+        _gameState.value = savedState
+        updateNumberCounts()
+        if (!savedState.isPaused) {
+            startTimer()
+        }
+    }
+
+    /**
+     * Clear saved game and start fresh.
+     */
+    fun clearSavedGame() {
+        viewModelScope.launch {
+            gameRepository.deleteSavedGame()
+        }
     }
 
     private fun boardToGrid(board: SudokuBoard): Array<IntArray> {
@@ -638,6 +744,28 @@ class GameViewModel(
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+    }
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(
+                modelClass: Class<T>,
+                extras: CreationExtras
+            ): T {
+                val savedStateHandle = extras.createSavedStateHandle()
+                val gameRepository = RepositoryProvider.getGameRepository()
+                val statsRepository = RepositoryProvider.getStatsRepository()
+                val dailyChallengeStore = RepositoryProvider.getDailyChallengeStore()
+
+                return GameViewModel(
+                    savedStateHandle = savedStateHandle,
+                    gameRepository = gameRepository,
+                    statsRepository = statsRepository,
+                    dailyChallengeStore = dailyChallengeStore
+                ) as T
+            }
+        }
     }
 }
 
@@ -658,4 +786,6 @@ sealed class GameEvent {
         val score: Int,
         val difficulty: Difficulty
     ) : GameEvent()
+
+    data class ResumeDailyChallenge(val savedState: GameState) : GameEvent()
 }

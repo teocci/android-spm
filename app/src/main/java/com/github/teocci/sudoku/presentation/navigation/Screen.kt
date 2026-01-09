@@ -66,11 +66,19 @@ sealed class Screen(
 
     /**
      * Daily challenges screen with calendar.
+     * Arguments:
+     * - autoSelectNext: Optional boolean to auto-select next unsolved challenge
      */
     data object DailyChallenges : Screen(
-        route = "daily_challenges",
+        route = "daily_challenges?autoSelectNext={autoSelectNext}",
         title = "Daily Challenges"
-    )
+    ) {
+        const val ARG_AUTO_SELECT_NEXT = "autoSelectNext"
+
+        fun createRoute(autoSelectNext: Boolean = false): String {
+            return "daily_challenges?autoSelectNext=$autoSelectNext"
+        }
+    }
 
     /**
      * Profile/Me screen with statistics.
@@ -127,6 +135,33 @@ sealed class Screen(
 
         fun createRoute(score: Int, difficulty: Difficulty): String {
             return "game_over/$score/${difficulty.name.lowercase()}"
+        }
+    }
+
+    /**
+     * Daily challenge completed screen.
+     * Arguments:
+     * - score: Final score
+     * - time: Time taken in seconds
+     * - difficulty: Difficulty level
+     * - dateEpoch: The challenge date (epoch days)
+     */
+    data object DailyChallengeCompleted : Screen(
+        route = "daily_challenge_completed/{score}/{time}/{difficulty}/{dateEpoch}",
+        title = "Challenge Completed!"
+    ) {
+        const val ARG_SCORE = "score"
+        const val ARG_TIME = "time"
+        const val ARG_DIFFICULTY = "difficulty"
+        const val ARG_DATE_EPOCH = "dateEpoch"
+
+        fun createRoute(
+            score: Int,
+            timeSeconds: Long,
+            difficulty: Difficulty,
+            dateEpoch: Long
+        ): String {
+            return "daily_challenge_completed/$score/$timeSeconds/${difficulty.name.lowercase()}/$dateEpoch"
         }
     }
 

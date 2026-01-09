@@ -22,6 +22,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.github.teocci.sudoku.domain.model.Difficulty
+import com.github.teocci.sudoku.presentation.daily.DailyChallengeCompletedScreen
 import com.github.teocci.sudoku.presentation.daily.DailyChallengesScreen
 import com.github.teocci.sudoku.presentation.game.GameScreen
 import com.github.teocci.sudoku.presentation.main.MainScreen
@@ -130,13 +131,59 @@ fun SudokuNavGraph(
                         },
                         onNavigateToSettings = {
                             navController.navigate(Screen.Settings.route)
+                        },
+                        onGameComplete = { score, time, difficulty, isDaily ->
+                            if (isDaily) {
+                                // Navigate to Daily Challenge Completed screen
+                                navController.navigate(
+                                    Screen.DailyChallengeCompleted.createRoute(
+                                        score = score,
+                                        timeSeconds = time,
+                                        difficulty = difficulty,
+                                        dateEpoch = dateEpoch
+                                    )
+                                ) {
+                                    popUpTo(Screen.Main.route) { inclusive = false }
+                                }
+                            } else {
+                                // Navigate to regular Game Complete screen (if implemented)
+                                navController.navigate(
+                                    Screen.GameComplete.createRoute(
+                                        score = score,
+                                        timeSeconds = time,
+                                        difficulty = difficulty,
+                                        isDaily = false
+                                    )
+                                ) {
+                                    popUpTo(Screen.Main.route) { inclusive = false }
+                                }
+                            }
+                        },
+                        onGameOver = { score, difficulty ->
+                            // Navigate to Game Over screen
+                            navController.navigate(
+                                Screen.GameOver.createRoute(score, difficulty)
+                            ) {
+                                popUpTo(Screen.Main.route) { inclusive = false }
+                            }
                         }
                     )
                 }
 
                 // Daily Challenges screen
-                composable(route = Screen.DailyChallenges.route) {
+                composable(
+                    route = Screen.DailyChallenges.route,
+                    arguments = listOf(
+                        navArgument(Screen.DailyChallenges.ARG_AUTO_SELECT_NEXT) {
+                            type = NavType.BoolType
+                            defaultValue = false
+                        }
+                    )
+                ) { backStackEntry ->
+                    val autoSelectNext = backStackEntry.arguments?.getBoolean(Screen.DailyChallenges.ARG_AUTO_SELECT_NEXT) ?: false
+
                     DailyChallengesScreen(
+                        autoSelectNext = autoSelectNext,
                         onNavigateToGame = { date, difficulty ->
                             navController.navigate(
                                 Screen.Game.createDailyRoute(difficulty, date.toEpochDay())
@@ -171,6 +218,57 @@ fun SudokuNavGraph(
                             navController.popBackStack()
                         },
                         onThemeChanged = onThemeChanged
+                    )
+                }
+
+                // Daily Challenge Completed screen
+                composable(
+                    route = Screen.DailyChallengeCompleted.route,
+                    arguments = listOf(
+                        navArgument(Screen.DailyChallengeCompleted.ARG_SCORE) {
+                            type = NavType.IntType
+                        },
+                        navArgument(Screen.DailyChallengeCompleted.ARG_TIME) {
+                            type = NavType.LongType
+                        },
+                        navArgument(Screen.DailyChallengeCompleted.ARG_DIFFICULTY) {
+                            type = NavType.StringType
+                        },
+                        navArgument(Screen.DailyChallengeCompleted.ARG_DATE_EPOCH) {
+                            type = NavType.LongType
+                        }
+                    ),
+                    enterTransition = {
+                        fadeIn(animationSpec = tween(500))
+                    }
+                ) { backStackEntry ->
+                    val score = backStackEntry.arguments?.getInt(Screen.DailyChallengeCompleted.ARG_SCORE) ?: 0
+                    val time = backStackEntry.arguments?.getLong(Screen.DailyChallengeCompleted.ARG_TIME) ?: 0L
+                    val difficultyStr = backStackEntry.arguments?.getString(Screen.DailyChallengeCompleted.ARG_DIFFICULTY) ?: "medium"
+                    val dateEpoch = backStackEntry.arguments?.getLong(Screen.DailyChallengeCompleted.ARG_DATE_EPOCH) ?: 0L
+
+                    val difficulty = Difficulty.entries.find {
+                        it.name.equals(difficultyStr, ignoreCase = true)
+                    } ?: Difficulty.MEDIUM
+                    val date = LocalDate.ofEpochDay(dateEpoch)
+
+                    DailyChallengeCompletedScreen(
+                        score = score,
+                        timeSeconds = time,
+                        difficulty = difficulty,
+                        date = date,
+                        onCollectReward = {
+                            // Navigate to Daily Challenges screen with auto-select next unsolved
+                            navController.navigate(Screen.DailyChallenges.createRoute(autoSelectNext = true)) {
+                                popUpTo(Screen.Main.route) { inclusive = false }
+                            }
+                        },
+                        onSeeAllStats = {
+                            // Navigate to Profile screen
+                            navController.navigate(Screen.Profile.route) {
+                                popUpTo(Screen.Main.route) { inclusive = false }
+                            }
+                        }
                     )
                 }
             }

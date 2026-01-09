@@ -8,7 +8,10 @@
       "Bash(java -version:*)",
       "Bash(where:*)",
       "Bash(dir:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(./gradlew compileDebugKotlin:*)",
+      "Bash(gradlew.bat assembleDebug)",
+      "Bash(./gradlew assembleDebug:*)"
     ]
   }
 }
