@@ -2,6 +2,7 @@ package com.github.teocci.sudoku.presentation.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.teocci.sudoku.data.repository.StatsRepository
 import com.github.teocci.sudoku.domain.model.Difficulty
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,9 @@ import kotlinx.coroutines.launch
  * ViewModel for the main/home screen.
  * Handles difficulty selection and navigation to game.
  */
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val statsRepository: StatsRepository
+) : ViewModel() {
 
     // UI State
     private val _uiState = MutableStateFlow(MainUiState())
@@ -119,19 +122,24 @@ class MainViewModel : ViewModel() {
      * Load user statistics.
      */
     fun loadStatistics() {
-        // TODO: Implement loading statistics from repository
         viewModelScope.launch {
-            _uiState.update { state ->
-                state.copy(
-                    statistics = UserStatistics(
-                        gamesPlayed = 42,
-                        gamesWon = 38,
-                        currentStreak = 5,
-                        bestStreak = 12,
-                        averageTime = 480L, // 8 minutes
-                        bestTime = 245L // 4:05
+            statsRepository.overallStats.collect { overallStats ->
+                _uiState.update { state ->
+                    state.copy(
+                        statistics = UserStatistics(
+                            gamesPlayed = overallStats.gamesPlayed,
+                            gamesWon = overallStats.gamesWon,
+                            currentStreak = overallStats.currentStreak,
+                            bestStreak = overallStats.bestStreak,
+                            averageTime = if (overallStats.gamesWon > 0) {
+                                overallStats.totalTime / overallStats.gamesWon
+                            } else {
+                                0L
+                            },
+                            bestTime = overallStats.bestTime
+                        )
                     )
-                )
+                }
             }
         }
     }

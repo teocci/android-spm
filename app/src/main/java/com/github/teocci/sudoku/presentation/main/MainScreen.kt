@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.github.teocci.sudoku.core.formatTime
+import com.github.teocci.sudoku.data.RepositoryProvider
 import com.github.teocci.sudoku.domain.model.Difficulty
 import com.github.teocci.sudoku.ui.theme.DifficultyEasy
 import com.github.teocci.sudoku.ui.theme.DifficultyExpert
@@ -65,7 +66,11 @@ import kotlinx.coroutines.flow.collectLatest
  */
 @Composable
 fun MainScreen(
-    viewModel: MainViewModel = viewModel(),
+    viewModel: MainViewModel = viewModel {
+        MainViewModel(
+            statsRepository = RepositoryProvider.getStatsRepository()
+        )
+    },
     onNavigateToGame: (Difficulty) -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {

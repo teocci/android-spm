@@ -9,6 +9,9 @@ import androidx.lifecycle.viewModelScope
 import com.github.teocci.sudoku.core.Constants.GRID_SIZE
 import com.github.teocci.sudoku.data.RepositoryProvider
 import com.github.teocci.sudoku.data.local.DailyChallengeStore
+import com.github.teocci.sudoku.data.repository.AchievementRepository
+import com.github.teocci.sudoku.data.repository.GameHistoryEntry
+import com.github.teocci.sudoku.data.repository.GameHistoryRepository
 import com.github.teocci.sudoku.data.repository.GameRepository
 import com.github.teocci.sudoku.data.repository.StatsRepository
 import com.github.teocci.sudoku.domain.generator.SudokuGenerator
@@ -40,7 +43,9 @@ class GameViewModel(
     savedStateHandle: SavedStateHandle,
     private val gameRepository: GameRepository = RepositoryProvider.getGameRepository(),
     private val statsRepository: StatsRepository = RepositoryProvider.getStatsRepository(),
-    private val dailyChallengeStore: DailyChallengeStore = RepositoryProvider.getDailyChallengeStore()
+    private val dailyChallengeStore: DailyChallengeStore = RepositoryProvider.getDailyChallengeStore(),
+    private val achievementRepository: AchievementRepository = RepositoryProvider.getAchievementRepository(),
+    private val gameHistoryRepository: GameHistoryRepository = RepositoryProvider.getGameHistoryRepository()
 ) : ViewModel() {
 
     // Parse navigation arguments
@@ -655,6 +660,7 @@ class GameViewModel(
         val hintsUsed = 3 - state.hintsRemaining
         val isPerfect = state.mistakes == 0 && hintsUsed == 0
 
+        // 1. Record in stats
         statsRepository.recordGameCompleted(
             difficulty = state.difficulty,
             time = state.elapsedTimeSeconds,
@@ -663,7 +669,24 @@ class GameViewModel(
             hintsUsed = hintsUsed
         )
 
-        // Record daily challenge completion
+        // 2. Record in game history
+        gameHistoryRepository.recordGame(
+            GameHistoryEntry(
+                timestamp = System.currentTimeMillis(),
+                difficulty = state.difficulty,
+                timeSeconds = state.elapsedTimeSeconds,
+                score = finalScore.multipliedPoints,
+                isCompleted = true,
+                mistakes = state.mistakes,
+                hintsUsed = hintsUsed,
+                isDailyChallenge = isDaily
+            )
+        )
+
+        // 3. Check achievements
+        achievementRepository.checkAndUpdateAchievements()
+
+        // 4. Handle daily challenge completion
         if (isDaily) {
             dailyChallengeStore.markDayCompleted(
                 date = gameDate,
@@ -691,14 +714,32 @@ class GameViewModel(
         timerJob?.cancel()
         val state = _gameState.value
 
-        // Record failed game in stats
+        // Record failed game
         val hintsUsed = 3 - state.hintsRemaining
+
+        // 1. Record in stats
         statsRepository.recordGameFailed(
             difficulty = state.difficulty,
             time = state.elapsedTimeSeconds,
             score = state.score,
             hintsUsed = hintsUsed
         )
+
+        // 2. Record in game history
+        gameHistoryRepository.recordGame(
+            GameHistoryEntry(
+                timestamp = System.currentTimeMillis(),
+                difficulty = state.difficulty,
+                timeSeconds = state.elapsedTimeSeconds,
+                score = state.score,
+                isCompleted = false,
+                mistakes = state.mistakes,
+                hintsUsed = hintsUsed,
+                isDailyChallenge = isDaily
+            )
+        )
+
+        // Note: Don't check achievements on loss
 
         // Clear saved daily challenge if applicable
         if (isDaily) {
@@ -757,12 +798,16 @@ class GameViewModel(
                 val gameRepository = RepositoryProvider.getGameRepository()
                 val statsRepository = RepositoryProvider.getStatsRepository()
                 val dailyChallengeStore = RepositoryProvider.getDailyChallengeStore()
+                val achievementRepository = RepositoryProvider.getAchievementRepository()
+                val gameHistoryRepository = RepositoryProvider.getGameHistoryRepository()
 
                 return GameViewModel(
                     savedStateHandle = savedStateHandle,
                     gameRepository = gameRepository,
                     statsRepository = statsRepository,
-                    dailyChallengeStore = dailyChallengeStore
+                    dailyChallengeStore = dailyChallengeStore,
+                    achievementRepository = achievementRepository,
+                    gameHistoryRepository = gameHistoryRepository
                 ) as T
             }
         }

@@ -3,6 +3,8 @@ package com.github.teocci.sudoku.data
 import android.content.Context
 import com.github.teocci.sudoku.data.local.DailyChallengeStore
 import com.github.teocci.sudoku.data.local.GamePreferences
+import com.github.teocci.sudoku.data.repository.AchievementRepository
+import com.github.teocci.sudoku.data.repository.GameHistoryRepository
 import com.github.teocci.sudoku.data.repository.GameRepository
 import com.github.teocci.sudoku.data.repository.StatsRepository
 
@@ -16,6 +18,8 @@ object RepositoryProvider {
     private var gameRepository: GameRepository? = null
     private var dailyChallengeStore: DailyChallengeStore? = null
     private var gamePreferences: GamePreferences? = null
+    private var achievementRepository: AchievementRepository? = null
+    private var gameHistoryRepository: GameHistoryRepository? = null
 
     /**
      * Initialize all repositories with application context.
@@ -27,6 +31,12 @@ object RepositoryProvider {
         gameRepository = GameRepository(appContext)
         dailyChallengeStore = DailyChallengeStore(appContext)
         gamePreferences = GamePreferences(appContext)
+        achievementRepository = AchievementRepository(
+            context = appContext,
+            statsRepository = statsRepository!!,
+            dailyChallengeStore = dailyChallengeStore!!
+        )
+        gameHistoryRepository = GameHistoryRepository(appContext)
     }
 
     /**
@@ -65,6 +75,26 @@ object RepositoryProvider {
      */
     fun getGamePreferences(): GamePreferences {
         return gamePreferences ?: throw IllegalStateException(
+            "RepositoryProvider not initialized. Call initialize(context) first."
+        )
+    }
+
+    /**
+     * Get AchievementRepository instance.
+     * Throws IllegalStateException if not initialized.
+     */
+    fun getAchievementRepository(): AchievementRepository {
+        return achievementRepository ?: throw IllegalStateException(
+            "RepositoryProvider not initialized. Call initialize(context) first."
+        )
+    }
+
+    /**
+     * Get GameHistoryRepository instance.
+     * Throws IllegalStateException if not initialized.
+     */
+    fun getGameHistoryRepository(): GameHistoryRepository {
+        return gameHistoryRepository ?: throw IllegalStateException(
             "RepositoryProvider not initialized. Call initialize(context) first."
         )
     }

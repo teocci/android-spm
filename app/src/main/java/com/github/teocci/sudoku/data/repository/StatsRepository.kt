@@ -40,7 +40,8 @@ class StatsRepository(context: Context) {
             },
             totalScore = prefs.getInt(KEY_TOTAL_SCORE, 0),
             perfectGames = prefs.getInt(KEY_PERFECT_GAMES, 0),
-            hintsUsed = prefs.getInt(KEY_HINTS_USED, 0)
+            hintsUsed = prefs.getInt(KEY_HINTS_USED, 0),
+            gamesWithoutHints = prefs.getInt(KEY_GAMES_WITHOUT_HINTS, 0)
         )
     }
 
@@ -66,6 +67,8 @@ class StatsRepository(context: Context) {
             minOf(currentStats.bestTime, time)
         }
 
+        val gamesWithoutHintsIncrement = if (hintsUsed == 0) 1 else 0
+
         val newStats = OverallStats(
             gamesPlayed = currentStats.gamesPlayed + 1,
             gamesWon = currentStats.gamesWon + 1,
@@ -75,7 +78,8 @@ class StatsRepository(context: Context) {
             bestTime = newBestTime,
             totalScore = currentStats.totalScore + score,
             perfectGames = if (isPerfect) currentStats.perfectGames + 1 else currentStats.perfectGames,
-            hintsUsed = currentStats.hintsUsed + hintsUsed
+            hintsUsed = currentStats.hintsUsed + hintsUsed,
+            gamesWithoutHints = currentStats.gamesWithoutHints + gamesWithoutHintsIncrement
         )
 
         _overallStats.value = newStats
@@ -129,6 +133,7 @@ class StatsRepository(context: Context) {
             putInt(KEY_TOTAL_SCORE, stats.totalScore)
             putInt(KEY_PERFECT_GAMES, stats.perfectGames)
             putInt(KEY_HINTS_USED, stats.hintsUsed)
+            putInt(KEY_GAMES_WITHOUT_HINTS, stats.gamesWithoutHints)
         }
     }
 
@@ -235,6 +240,7 @@ class StatsRepository(context: Context) {
         private const val KEY_TOTAL_SCORE = "total_score"
         private const val KEY_PERFECT_GAMES = "perfect_games"
         private const val KEY_HINTS_USED = "hints_used"
+        private const val KEY_GAMES_WITHOUT_HINTS = "games_without_hints"
 
         @Volatile
         private var INSTANCE: StatsRepository? = null
@@ -264,7 +270,8 @@ data class OverallStats(
     val bestTime: Long = 0L,
     val totalScore: Int = 0,
     val perfectGames: Int = 0,
-    val hintsUsed: Int = 0
+    val hintsUsed: Int = 0,
+    val gamesWithoutHints: Int = 0  // For Self-Sufficient achievement
 ) {
     /**
      * Win rate as percentage.
