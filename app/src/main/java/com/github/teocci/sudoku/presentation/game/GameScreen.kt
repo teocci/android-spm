@@ -1,8 +1,5 @@
 package com.github.teocci.sudoku.presentation.game
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,15 +83,19 @@ fun GameScreen(
                 is GameEvent.Mistake -> {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
+
                 is GameEvent.Completion -> {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
+
                 is GameEvent.GameWon -> {
                     onGameComplete(event.score, event.time, event.difficulty, event.isDaily)
                 }
+
                 is GameEvent.GameLost -> {
                     onGameOver(event.score, event.difficulty)
                 }
+
                 is GameEvent.ResumeDailyChallenge -> {
                     savedGameState = event.savedState
                     showResumeDialog = true
@@ -381,8 +382,15 @@ private fun PreviewGameScreen() {
             hintCell = null,
             showCelebration = false,
             numberCounts = mapOf(
-                1 to 3, 2 to 5, 3 to 9, 4 to 2,
-                5 to 7, 6 to 4, 7 to 6, 8 to 1, 9 to 8
+                1 to 3,
+                2 to 5,
+                3 to 9,
+                4 to 2,
+                5 to 7,
+                6 to 4,
+                7 to 6,
+                8 to 1,
+                9 to 8
             ),
             onBackClick = {},
             onSettingsClick = {},

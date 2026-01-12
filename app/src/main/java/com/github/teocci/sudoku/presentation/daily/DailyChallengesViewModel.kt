@@ -34,33 +34,47 @@ class DailyChallengesViewModel(
     val navigationEvent = _navigationEvent.asSharedFlow()
 
     init {
-        loadCurrentMonth()
-        loadCompletedDaysAndStreak()
+        // Load initial data synchronously to ensure UI has data on first render
+        loadInitialData()
+
+        // Set up reactive observers for future updates
+        observeCompletedDaysAndStreak()
         loadTrophies()
     }
 
     /**
-     * Load data for the current month.
+     * Load initial data synchronously before first render.
+     * This ensures the calendar displays completion status on first load.
      */
-    private fun loadCurrentMonth() {
+    private fun loadInitialData() {
         val today = LocalDate.now()
         val yearMonth = YearMonth.from(today)
+
+        // Read initial values from StateFlows (already loaded in DailyChallengeStore constructor)
+        val initialCompletedDays = dailyChallengeStore.completedDays.value
+        val initialStreak = dailyChallengeStore.currentStreak.value
 
         _uiState.update { state ->
             state.copy(
                 currentYearMonth = yearMonth,
                 selectedDate = today,
                 today = today,
-                calendarDays = generateCalendarDays(yearMonth)
+                completedDays = initialCompletedDays,
+                currentStreak = initialStreak,
+                calendarDays = generateCalendarDaysWithCompletedDays(
+                    yearMonth = yearMonth,
+                    completedDays = initialCompletedDays
+                ),
+                monthlyProgress = calculateMonthlyProgress(initialCompletedDays, yearMonth)
             )
         }
     }
 
     /**
-     * Load completed daily challenges and current streak.
-     * Observes both StateFlows for automatic updates.
+     * Observe completed daily challenges and current streak for reactive updates.
+     * This handles updates when challenges are completed during app usage.
      */
-    private fun loadCompletedDaysAndStreak() {
+    private fun observeCompletedDaysAndStreak() {
         viewModelScope.launch {
             // Observe completed days
             launch {
@@ -68,7 +82,14 @@ class DailyChallengesViewModel(
                     _uiState.update { state ->
                         state.copy(
                             completedDays = completedDates,
-                            monthlyProgress = calculateMonthlyProgress(completedDates, state.currentYearMonth)
+                            calendarDays = generateCalendarDaysWithCompletedDays(
+                                yearMonth = state.currentYearMonth,
+                                completedDays = completedDates
+                            ),
+                            monthlyProgress = calculateMonthlyProgress(
+                                completedDates,
+                                state.currentYearMonth
+                            )
                         )
                     }
                 }
@@ -132,7 +153,7 @@ class DailyChallengesViewModel(
             val newYearMonth = state.currentYearMonth.minusMonths(1)
             state.copy(
                 currentYearMonth = newYearMonth,
-                calendarDays = generateCalendarDays(newYearMonth),
+                calendarDays = generateCalendarDaysWithCompletedDays(newYearMonth),
                 monthlyProgress = calculateMonthlyProgress(state.completedDays, newYearMonth)
             )
         }
@@ -151,7 +172,7 @@ class DailyChallengesViewModel(
                 val newYearMonth = state.currentYearMonth.plusMonths(1)
                 state.copy(
                     currentYearMonth = newYearMonth,
-                    calendarDays = generateCalendarDays(newYearMonth),
+                    calendarDays = generateCalendarDaysWithCompletedDays(newYearMonth),
                     monthlyProgress = calculateMonthlyProgress(state.completedDays, newYearMonth)
                 )
             }
@@ -244,11 +265,16 @@ class DailyChallengesViewModel(
 
     /**
      * Generate calendar days for a month (including padding days from adjacent months).
+     *
+     * @param yearMonth The month to generate calendar for
+     * @param completedDays Set of completed dates (defaults to current state)
      */
-    private fun generateCalendarDays(yearMonth: YearMonth): List<CalendarDay> {
+    private fun generateCalendarDaysWithCompletedDays(
+        yearMonth: YearMonth,
+        completedDays: Set<LocalDate> = _uiState.value.completedDays
+    ): List<CalendarDay> {
         val days = mutableListOf<CalendarDay>()
         val today = LocalDate.now()
-        val completedDays = _uiState.value.completedDays
 
         // First day of the month
         val firstOfMonth = yearMonth.atDay(1)
@@ -285,7 +311,10 @@ class DailyChallengesViewModel(
     /**
      * Calculate monthly progress (completed days / total days in month).
      */
-    private fun calculateMonthlyProgress(completedDays: Set<LocalDate>, yearMonth: YearMonth): MonthlyProgress {
+    private fun calculateMonthlyProgress(
+        completedDays: Set<LocalDate>,
+        yearMonth: YearMonth
+    ): MonthlyProgress {
         val today = LocalDate.now()
         val daysInMonth = yearMonth.lengthOfMonth()
 

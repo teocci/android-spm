@@ -105,8 +105,8 @@ val NumberErrorDark = Color(0xFFEF5350)
 val NumberErrorLight = Color(0xFFD32F2F)
 
 // Notes (smaller numbers)
-val NumberNoteDark = Color(0xFF8899A6)
-val NumberNoteLight = Color(0xFF6B7C8A)
+val NumberNoteDark = Color(0xFFB2C0CB)
+val NumberNoteLight = Color(0xFF576570)
 
 // Hint revealed numbers
 val NumberHintDark = Color(0xFF81C784)
@@ -210,6 +210,7 @@ val StreakFireLight = Color(0xFFE65100)     // Darker orange for contrast
 val TrophyGold = Color(0xFFFFD700)
 val TrophySilver = Color(0xFFC0C0C0)
 val TrophyBronze = Color(0xFFCD7F32)
+val TrophyPlatinum = Color(0xFFE5E4E2)
 
 // Calendar (daily challenges)
 val CalendarDayCompletedDark = Color(0xFF4A90D9)

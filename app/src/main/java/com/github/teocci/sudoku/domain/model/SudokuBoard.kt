@@ -1,7 +1,7 @@
 package com.github.teocci.sudoku.domain.model
 
-import com.github.teocci.sudoku.core.Constants.GRID_SIZE
 import com.github.teocci.sudoku.core.Constants.BOX_SIZE
+import com.github.teocci.sudoku.core.Constants.GRID_SIZE
 
 /**
  * Represents a 9x9 Sudoku board containing cells.

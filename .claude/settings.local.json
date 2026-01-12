@@ -11,7 +11,11 @@
       "Bash(findstr:*)",
       "Bash(./gradlew compileDebugKotlin:*)",
       "Bash(gradlew.bat assembleDebug)",
-      "Bash(./gradlew assembleDebug:*)"
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(.gradlew.bat build:*)",
+      "Bash(gradlew.bat build:*)",
+      "Bash(./gradlew clean build:*)",
+      "Bash(./gradlew :app:compileDebugKotlin:*)"
     ]
   }
 }

@@ -131,14 +131,6 @@ private fun DailyChallengesContent(
             color = colors.numberFixed
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Streak and progress row
-        StreakAndProgressRow(
-            currentStreak = uiState.currentStreak,
-            monthlyProgress = uiState.monthlyProgress
-        )
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // Calendar view
@@ -160,6 +152,14 @@ private fun DailyChallengesContent(
             isCompleted = uiState.selectedDate in uiState.completedDays,
             isToday = uiState.selectedDate == uiState.today,
             onPlayClick = onPlayClick
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Streak and progress row
+        StreakAndProgressRow(
+            currentStreak = uiState.currentStreak,
+            monthlyProgress = uiState.monthlyProgress
         )
 
         Spacer(modifier = Modifier.height(24.dp))

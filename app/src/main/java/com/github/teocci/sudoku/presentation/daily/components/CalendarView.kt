@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,6 +50,10 @@ import com.github.teocci.sudoku.ui.theme.DifficultyHard
 import com.github.teocci.sudoku.ui.theme.DifficultyMedium
 import com.github.teocci.sudoku.ui.theme.SudokuPuzzleMasterTheme
 import com.github.teocci.sudoku.ui.theme.SudokuTheme
+import com.github.teocci.sudoku.ui.theme.TrophyBronze
+import com.github.teocci.sudoku.ui.theme.TrophyGold
+import com.github.teocci.sudoku.ui.theme.TrophyPlatinum
+import com.github.teocci.sudoku.ui.theme.TrophySilver
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -288,31 +293,31 @@ private fun CalendarDayCell(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = calendarDay.dayOfMonth.toString(),
-                style = CalendarDayStyle,
-                color = textColor,
-                fontWeight = if (calendarDay.isToday || isSelected) FontWeight.Bold else FontWeight.Normal
-            )
-
-            // Completion star indicator
-            if (calendarDay.isCompleted && calendarDay.isInCurrentMonth) {
+            // Show trophy icon if completed, otherwise show day number
+            if (calendarDay.isCompleted && calendarDay.isInCurrentMonth && calendarDay.difficulty != null) {
                 Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = "Completed",
-                    tint = colors.starFilled,
-                    modifier = Modifier.size(10.dp)
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = "Completed Challenge",
+                    tint = getTrophyColor(calendarDay.difficulty),
+                    modifier = Modifier.size(24.dp)
                 )
-            }
+            } else {
+                Text(
+                    text = calendarDay.dayOfMonth.toString(),
+                    style = CalendarDayStyle,
+                    color = textColor,
+                    fontWeight = if (calendarDay.isToday || isSelected) FontWeight.Bold else FontWeight.Normal
+                )
 
-            // Difficulty indicator for non-future days
-            if (!calendarDay.isFuture && calendarDay.isInCurrentMonth && !calendarDay.isCompleted) {
-                calendarDay.difficulty?.let { difficulty ->
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(getDifficultyColor(difficulty), CircleShape)
-                    )
+                // Difficulty indicator for non-future days (only if not completed)
+                if (!calendarDay.isFuture && calendarDay.isInCurrentMonth && !calendarDay.isCompleted) {
+                    calendarDay.difficulty?.let { difficulty ->
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(getDifficultyColor(difficulty), CircleShape)
+                        )
+                    }
                 }
             }
         }
@@ -371,6 +376,18 @@ private fun getDifficultyColor(difficulty: Difficulty): Color {
         Difficulty.MEDIUM -> DifficultyMedium
         Difficulty.HARD -> DifficultyHard
         Difficulty.EXPERT -> DifficultyExpert
+    }
+}
+
+/**
+ * Get the trophy color based on difficulty level.
+ */
+private fun getTrophyColor(difficulty: Difficulty): Color {
+    return when (difficulty) {
+        Difficulty.EASY -> TrophyBronze
+        Difficulty.MEDIUM -> TrophySilver
+        Difficulty.HARD -> TrophyGold
+        Difficulty.EXPERT -> TrophyPlatinum
     }
 }
 
